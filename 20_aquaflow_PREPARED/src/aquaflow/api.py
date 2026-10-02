@@ -11,3 +11,7 @@ class AquaFlowService:
     def water_balance(self,ins,outs,known_loss):return balance(ins,outs,known_loss)
     def leak_rank(self,rows):return rank(rows)
     def run_workflow(self,name,payload,received_at=None):return self.workflows.run(name,payload,received_at)
+    def dispatch_work_order(self,order,crews,starts_at,history=(),override=None):
+        payload={"order":order,"crews":crews,"starts_at":starts_at,"history":history}
+        if override is not None:payload["override"]=override
+        return self.workflows.run("emergency_dispatch",payload)

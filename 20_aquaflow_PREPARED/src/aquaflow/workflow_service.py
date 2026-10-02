@@ -5,11 +5,14 @@ from datetime import datetime
 from typing import Any
 
 from .workflow_models import normalize
-from .workflow_rules import evaluate
+from .workflow_rules import emergency_dispatcher, evaluate
 
 
 class WorkflowService:
     """Run a normalized workflow and attach deterministic audit metadata."""
+
+    def __init__(self):
+        self.dispatch = emergency_dispatcher
 
     def run(self, name: str, payload: dict[str, Any], received_at: datetime | None = None) -> dict[str, Any]:
         envelope = normalize(name, payload, received_at)

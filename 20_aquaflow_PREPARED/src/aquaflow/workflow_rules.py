@@ -25,6 +25,11 @@ from .treatment.backwash import Filter, choose as choose_filter
 from .treatment.chlorine_ct import Segment, effective_ct
 from .treatment.coagulant import Jar, recommend
 from .work.confined import Permit, valid
+from .work.dispatch import DispatchService, as_override, serialize_plan
+
+# A process-wide dispatcher keeps fatigue calculations and override decisions
+# available to callers that only use the workflow envelope.
+emergency_dispatcher = DispatchService()
 
 
 def _dt(value: Any) -> datetime:
@@ -125,5 +130,22 @@ def evaluate(name: str, p: dict[str, Any]) -> dict[str, Any]:
         rows = [Reading(_dt(x["at"]), float(x["value"])) for x in p["readings"]]
         result = average(rows, timedelta(hours=float(p["window_hours"])), _dt(p["at"]))
         return {"decision": "report" if result is not None else "defer", "value": result, "evidence": {"reading_count": len(rows)}}
+    if name == "emergency_dispatch":
+        order = dict(p["order"])
+        order["starts_at"] = p["starts_at"]
+        override = as_override(p["override"]) if p.get("override") else None
+        plan = emergency_dispatcher.propose(order, p["crews"], p.get("history", ()), _dt(p["starts_at"]), override)
+        serialized = serialize_plan(plan)
+        return {
+            "decision": plan.decision,
+            "value": plan.selected.crew_id if plan.selected else None,
+            "evidence": {
+                "priority": plan.priority,
+                "selected": serialized["selected"],
+                "options": serialized["options"],
+                "fatigue_calculations": serialized["fatigue_calculations"],
+                "audit": emergency_dispatcher.audit_log(),
+            },
+        }
     raise ValueError("unknown workflow")
 
